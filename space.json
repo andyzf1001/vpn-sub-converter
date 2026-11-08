@@ -1,0 +1,8 @@
+{
+  "runtime": "typescript",
+  "platformVersion": 28,
+  "entry": "client/dist/index.html",
+  "name": "VPN订阅转换工具",
+  "slug": "vpnding-yue-zhuan-huan-gong-ju",
+  "managedCronJobs": []
+}
