@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@import "tailwindcss-safe-area";
+
+@theme {
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 28px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+  --text-3xl: 30px;
+  --text-3xl--line-height: 36px;
+}
+
+:root {
+  color-scheme: light dark;
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --surface-alt: #e4eaf0;
+  --text: #17222c;
+  --dim: #5d6d7c;
+  --border: #d3dce4;
+  --accent: #128a56;
+  --accent-text: #ffffff;
+  --warn: #a86a08;
+  --warn-bg: #fdf3e0;
+  --danger: #c0392b;
+  --radius: 10px;
+  --space-surface: var(--surface);
+  --space-surface-alt: var(--surface-alt);
+  --space-muted: var(--dim);
+  --space-border: var(--border);
+  --space-accent: var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1419;
+    --surface: #1a2129;
+    --surface-alt: #232d38;
+    --text: #e6ebf0;
+    --dim: #8b98a5;
+    --border: #2c3742;
+    --accent: #22c07a;
+    --accent-text: #06281a;
+    --warn: #f0a832;
+    --warn-bg: #2e2410;
+    --danger: #e0655a;
+  }
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
