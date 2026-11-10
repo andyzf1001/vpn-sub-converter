@@ -52,7 +52,39 @@ function contentSummary(content: string): string {
   return oneLine.length > 90 ? `${oneLine.slice(0, 90)}…` : oneLine;
 }
 
+/** UTF-8 安全的 base64 编码：先 TextEncoder 转字节再分块编码，中文不会被裸 btoa 搞坏 */
+function textToBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
+type NativeSaveBridge = { saveTextFile?: (filename: string, base64: string) => boolean };
+
+function nativeSaveBridge(): NativeSaveBridge | undefined {
+  return (window as unknown as { SubConverterNative?: NativeSaveBridge })
+    .SubConverterNative;
+}
+
+/** 是否运行在「订阅转换」APK 壳里（原生保存桥存在即是） */
+function inApkShell(): boolean {
+  const bridge = nativeSaveBridge();
+  return !!bridge && typeof bridge.saveTextFile === "function";
+}
+
 function downloadText(filename: string, text: string) {
+  // 在「订阅转换」APK 里：WebView 默认不处理 blob: 下载，必须走原生保存桥
+  //（桥用 MediaStore 把文件写入系统「下载」目录，并用 Toast 反馈成功/失败）。
+  const bridge = nativeSaveBridge();
+  if (bridge && typeof bridge.saveTextFile === "function") {
+    bridge.saveTextFile(filename, textToBase64(text));
+    return;
+  }
+  // 普通浏览器：原来的 blob 下载逻辑不变。
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -453,9 +485,9 @@ export function App() {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <main className="mx-auto w-full max-w-3xl px-4 pb-12">
         <div className="pt-6 pb-4">
-          <h1 className="text-2xl font-semibold leading-snug">二维码 / 配置文件 → 订阅链接</h1>
+          <h1 className="text-2xl font-semibold leading-snug">二维码 / 配置文件 → 订阅内容</h1>
           <p className="mt-1.5 text-sm text-[var(--dim)]">
-            粘贴节点链接、上传 Clash 配置或二维码截图，转成分享链接、完整 Clash 配置和订阅内容；转换都在这台设备上完成，不经过第三方网站。这是独立版：没有服务器，记录和订阅都只存在本机，「订阅链接」一栏改为把订阅保存到本地订阅库，需要时复制内容、下载文件或扫二维码导入。下面新增的「格式互转」可以选定源格式和目标格式，在五种格式之间来回转。
+            粘贴节点链接、上传 Clash 配置或二维码截图，转成分享链接、完整 Clash 配置和订阅内容；转换都在这台设备上完成，不经过第三方网站。这是独立版：没有服务器，记录和订阅都只存在本机，「本地订阅」一栏可以把订阅保存到本地订阅库，需要时复制内容、下载文件或扫二维码导入。下面新增的「格式互转」可以选定源格式和目标格式，在五种格式之间来回转。
           </p>
         </div>
 
@@ -753,7 +785,7 @@ export function App() {
                   订阅内容
                 </button>
                 <button type="button" role="tab" aria-selected={outputTab === "suburl"} className={tabBtn(outputTab === "suburl")} onClick={() => setOutputTab("suburl")}>
-                  订阅链接
+                  本地订阅
                 </button>
               </div>
 
@@ -815,7 +847,7 @@ export function App() {
               {outputTab === "sub" && (
                 <div className="mt-4">
                   <p className="text-sm text-[var(--dim)]">
-                    这是订阅的原始内容（Base64）：在 v2rayNG / 小火箭里选「从剪贴板导入」或粘贴到订阅内容里就能用；也可以下载成文件保存。独立版没有 https 订阅地址，常用的订阅可以在「订阅链接」里保存到本地订阅库，随时取用。
+                    这是订阅的原始内容（Base64）：在 v2rayNG / 小火箭里选「从剪贴板导入」或粘贴到订阅内容里就能用；也可以下载成文件保存。独立版没有 https 订阅地址，常用的订阅可以在「本地订阅」里保存到本地订阅库，随时取用。
                   </p>
                   <pre className="mono mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-[var(--bg)] p-3 text-[12px] leading-relaxed">
                     {subContent}
@@ -977,7 +1009,7 @@ export function App() {
             <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-[var(--dim)]">
               <li>把节点链接粘贴进来，或上传 Clash 配置文件 / 二维码截图。</li>
               <li>点「开始转换」，核对识别出的节点，名字不对可以直接改。</li>
-              <li>按需要拿结果：复制分享链接、下载带文件名的 Clash 配置、复制订阅内容、扫二维码导入，或在「订阅链接」里把订阅保存到本地订阅库。</li>
+              <li>按需要拿结果：复制分享链接、下载带文件名的 Clash 配置、复制订阅内容、扫二维码导入，或在「本地订阅」里把订阅保存到本地订阅库。</li>
             </ol>
             <p className="mt-3 text-sm text-[var(--dim)]">
               支持 vless、vmess、trojan、ss、hysteria2、tuic 链接，Clash YAML 配置，以及 Base64 订阅内容，互相之间都能转。
@@ -991,7 +1023,7 @@ export function App() {
           <p className="mt-1 text-[13px] text-[var(--dim)]">保存在这台设备上的订阅，没有公网地址；用复制内容、下载文件或二维码导入客户端。</p>
           {published.isPending && <p className="mt-2 text-sm text-[var(--dim)]">加载中…</p>}
           {published.data && published.data.items.length === 0 && (
-            <p className="mt-2 text-sm text-[var(--dim)]">还没有保存过订阅。转换出节点后，在结果的「订阅链接」里可以保存到本地订阅库。</p>
+            <p className="mt-2 text-sm text-[var(--dim)]">还没有保存过订阅。转换出节点后，在结果的「本地订阅」里可以保存到本地订阅库。</p>
           )}
           {published.data && published.data.items.length > 0 && (
             <ul className="mt-2 divide-y divide-[var(--border)]">
@@ -1092,6 +1124,42 @@ export function App() {
             </ul>
           )}
         </section>
+
+        {/* APK 下载入口：只在普通浏览器里显示；APK 壳里（保存桥存在）隐藏，
+            避免用户在 App 内点到同目录下并不存在的 APK 文件。 */}
+        {!inApkShell() && (
+          <p className="mt-8 text-center text-[13px] text-[var(--dim)]">
+            <a href="订阅转换_V1.1.apk" download className="underline">
+              下载安卓版 APK（订阅转换 V1.1）
+            </a>
+          </p>
+        )}
+
+        {/* 网页版入口（与上面镜像）：只在 APK 壳里显示；点击走壳的导航拦截，
+            交给系统浏览器打开，不在 WebView 里把本地应用顶掉。 */}
+        {inApkShell() && (
+          <p className="mt-8 text-center text-[13px] text-[var(--dim)]">
+            网页版：
+            <a
+              href="https://8000-agq2wptml5xfnwp63fiqovdu6m.instabox.tech"
+              className="underline"
+            >
+              8000-agq2wptml5xfnwp63fiqovdu6m.instabox.tech
+            </a>{" "}
+            <button
+              type="button"
+              className="text-[var(--accent)]"
+              onClick={() =>
+                handleCopy(
+                  "web-version-url",
+                  "https://8000-agq2wptml5xfnwp63fiqovdu6m.instabox.tech",
+                )
+              }
+            >
+              {copiedKey === "web-version-url" ? "已复制 ✓" : "复制地址"}
+            </button>
+          </p>
+        )}
       </main>
     </div>
   );
